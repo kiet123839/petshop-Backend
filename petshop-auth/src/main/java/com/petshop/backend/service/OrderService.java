@@ -13,6 +13,11 @@ import com.petshop.backend.repository.CustomerRepository;
 import com.petshop.backend.repository.OrderRepository;
 import com.petshop.backend.repository.PaymentRepository;
 import com.petshop.backend.repository.ProductRepository;
+import com.petshop.backend.model.Booking;
+import com.petshop.backend.model.Pet;
+import com.petshop.backend.repository.BookingRepository;
+import com.petshop.backend.repository.PetRepository;
+import com.petshop.backend.repository.ServiceRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -32,12 +37,19 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final EmailNotificationService emailNotificationService;
-    public OrderService(OrderRepository orderRepository, CustomerRepository customerRepository, ProductRepository productRepository, PaymentRepository paymentRepository, EmailNotificationService emailNotificationService) {
+    private final BookingRepository bookingRepository;
+    private final PetRepository petRepository;
+    private final ServiceRepository serviceRepository;
+
+    public OrderService(OrderRepository orderRepository, CustomerRepository customerRepository, ProductRepository productRepository, PaymentRepository paymentRepository, EmailNotificationService emailNotificationService, BookingRepository bookingRepository, PetRepository petRepository, ServiceRepository serviceRepository) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.productRepository = productRepository;
         this.paymentRepository = paymentRepository;
         this.emailNotificationService = emailNotificationService;
+        this.bookingRepository = bookingRepository;
+        this.petRepository = petRepository;
+        this.serviceRepository = serviceRepository;
     }
 
 
@@ -112,6 +124,75 @@ public class OrderService {
         }
 
         Order saved = orderRepository.save(order);
+
+        // Tự động đồng bộ hóa dịch vụ sang bảng Booking (Lịch hẹn)
+        List<ServiceItemResponse> parsedServices = parseServiceItemsFromNotes(saved.getNotes());
+        if (!parsedServices.isEmpty()) {
+            List<Pet> pets = petRepository.findByCustomer_IdAndIsActiveTrue(customer.getId());
+            Pet pet;
+            if (!pets.isEmpty()) {
+                pet = pets.get(0);
+            } else {
+                pet = new Pet();
+                pet.setCustomer(customer);
+                pet.setName("Thú cưng");
+                pet.setSpecies("Chưa xác định");
+                pet.setBreed("Chưa xác định");
+                pet.setIsActive(true);
+                pet = petRepository.save(pet);
+            }
+
+            List<Long> bookingIds = new java.util.ArrayList<>();
+            for (ServiceItemResponse svcItem : parsedServices) {
+                List<com.petshop.backend.model.Service> matched = serviceRepository.findByServiceNameContainingIgnoreCase(svcItem.getServiceName());
+                com.petshop.backend.model.Service serviceObj = null;
+                if (!matched.isEmpty()) {
+                    serviceObj = matched.get(0);
+                } else {
+                    List<com.petshop.backend.model.Service> allSvc = serviceRepository.findByIsActiveTrue();
+                    if (!allSvc.isEmpty()) {
+                        serviceObj = allSvc.get(0);
+                    }
+                }
+
+                if (serviceObj != null) {
+                    for (int q = 0; q < svcItem.getQuantity(); q++) {
+                        Booking booking = new Booking();
+                        booking.setCustomer(customer);
+                        booking.setPet(pet);
+                        booking.setService(serviceObj);
+                        booking.setBookingDate(saved.getOrderDate().withSecond(0).withNano(0));
+                        booking.setBookingTime(saved.getOrderDate().toLocalTime().withSecond(0).withNano(0));
+                        booking.setTotalPrice(serviceObj.getPrice() != null ? serviceObj.getPrice() : BigDecimal.ZERO);
+                        booking.setNotes(saved.getNotes());
+                        booking.setStatus("Pending");
+                        booking.setCreatedAt(LocalDateTime.now());
+                        booking.setUpdatedAt(LocalDateTime.now());
+
+                        booking = bookingRepository.save(booking);
+                        bookingIds.add(booking.getId());
+                    }
+                }
+            }
+
+            if (!bookingIds.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("[BOOKING #");
+                for (int i = 0; i < bookingIds.size(); i++) {
+                    sb.append(bookingIds.get(i));
+                    if (i < bookingIds.size() - 1) {
+                        sb.append(",");
+                    }
+                }
+                sb.append("] ");
+                if (saved.getNotes() != null) {
+                    sb.append(saved.getNotes());
+                }
+                saved.setNotes(sb.toString());
+                saved = orderRepository.save(saved);
+            }
+        }
+
         return toResponse(saved, null);
     }
 
@@ -182,6 +263,23 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
         String paymentInfo = getPaymentStatus(id);
+
+        // Đồng bộ trạng thái từ Order sang các Booking liên quan
+        java.util.Set<Long> bookingIds = extractBookingIds(order.getNotes());
+        for (Long bId : bookingIds) {
+            bookingRepository.findById(bId).ifPresent(b -> {
+                String mappedBookingStatus = switch (newStatus) {
+                    case "Confirmed"  -> "Confirmed";
+                    case "Processing" -> "InProgress";
+                    case "Delivered"  -> "Completed";
+                    case "Cancelled"  -> "Cancelled";
+                    default           -> b.getStatus();
+                };
+                b.setStatus(mappedBookingStatus);
+                b.setUpdatedAt(LocalDateTime.now());
+                bookingRepository.save(b);
+            });
+        }
 
         if (!"Delivered".equals(oldStatus) && "Delivered".equals(newStatus)) {
             emailNotificationService.sendOrderDeliveredNotification(savedOrder, paymentInfo);
@@ -292,5 +390,24 @@ public class OrderService {
             }
         }
         return result;
+    }
+
+    private java.util.Set<Long> extractBookingIds(String notes) {
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        if (notes == null) return ids;
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\[booking\\s*#([\\d\\s*,#]+)\\]", java.util.regex.Pattern.CASE_INSENSITIVE);
+        java.util.regex.Matcher m = p.matcher(notes);
+        if (m.find()) {
+            String content = m.group(1);
+            for (String token : content.split(",")) {
+                String clean = token.replace("#", "").trim();
+                if (!clean.isEmpty()) {
+                    try {
+                        ids.add(Long.valueOf(clean));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        return ids;
     }
 }

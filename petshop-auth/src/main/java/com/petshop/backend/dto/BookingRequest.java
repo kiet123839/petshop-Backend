@@ -11,8 +11,9 @@ public class BookingRequest {
     private Long customerId;
     @NotNull(message = "PetID không được trống")
     private Long petId;
-    @NotNull(message = "ServiceID không được trống")
     private Long serviceId;
+    // Hỗ trợ chọn nhiều dịch vụ
+    private java.util.List<Long> serviceIds;
     // Nhân viên thực hiện — có thể null (phân công sau)
     private Long employeeId;
     @NotNull(message = "Ngày đặt lịch không được trống")
@@ -20,6 +21,18 @@ public class BookingRequest {
     @NotNull(message = "Giờ đặt lịch không được trống")
     private LocalTime bookingTime;
     private String notes;
+
+    @java.lang.SuppressWarnings("all")
+    @lombok.Generated
+    public java.util.List<Long> getServiceIds() {
+        return this.serviceIds;
+    }
+
+    @java.lang.SuppressWarnings("all")
+    @lombok.Generated
+    public void setServiceIds(final java.util.List<Long> serviceIds) {
+        this.serviceIds = serviceIds;
+    }
 
     @java.lang.SuppressWarnings("all")
     @lombok.Generated
