@@ -233,6 +233,50 @@ public class ProductService {
     }
 
     /**
+     * Mua sản phẩm — trừ tồn kho, tự động deactivate khi hết hàng
+     * POST /api/products/{id}/purchase  body: { "quantity": N }
+     */
+    public ProductResponse purchaseProduct(Long id, int quantity) {
+
+        if (quantity <= 0) {
+            throw new RuntimeException("Số lượng mua phải lớn hơn 0");
+        }
+
+        Product p = productRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Không tìm thấy sản phẩm id: " + id
+                        )
+                );
+
+        if (!Boolean.TRUE.equals(p.getIsActive())) {
+            throw new RuntimeException(
+                    "Sản phẩm id: " + id + " đã ngừng kinh doanh"
+            );
+        }
+
+        int current = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
+
+        if (quantity > current) {
+            throw new RuntimeException(
+                    "Số lượng mua (" + quantity + ") vượt quá tồn kho hiện tại (" + current + ")"
+            );
+        }
+
+        int newStock = current - quantity;
+        p.setStockQuantity(newStock);
+
+        // Tự động deactivate khi hết hàng
+        if (newStock == 0) {
+            p.setIsActive(false);
+        }
+
+        p.setUpdatedAt(LocalDateTime.now());
+
+        return toResponse(productRepository.save(p));
+    }
+
+    /**
      * Xóa cứng sản phẩm
      */
     public void hardDeleteProduct(Long id) {

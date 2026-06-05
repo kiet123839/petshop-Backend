@@ -4,6 +4,7 @@ package com.petshop.backend.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.petshop.backend.dto.ServiceItemResponse;
 
 public class OrderResponse {
     private Long orderId;
@@ -22,6 +23,8 @@ public class OrderResponse {
     private LocalDateTime createdAt;
     // Chi tiết sản phẩm
     private List<OrderDetailResponse> items;
+    // Chi tiết dịch vụ (parse từ notes)
+    private List<ServiceItemResponse> serviceItems;
     // Thông tin thanh toán (nếu đã thanh toán)
     private String paymentStatus;
     private String paymentMethod;
@@ -204,5 +207,13 @@ public class OrderResponse {
     @lombok.Generated
     public void setPaymentMethod(final String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public List<ServiceItemResponse> getServiceItems() {
+        return this.serviceItems;
+    }
+
+    public void setServiceItems(final List<ServiceItemResponse> serviceItems) {
+        this.serviceItems = serviceItems;
     }
 }

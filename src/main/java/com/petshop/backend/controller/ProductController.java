@@ -127,6 +127,22 @@ public class ProductController {
     }
 
     /**
+     * PURCHASE PRODUCT (trừ tồn kho)
+     * POST /api/products/{id}/purchase
+     * Body: { "quantity": N }
+     */
+    @PostMapping("/{id}/purchase")
+    public ResponseEntity<ProductResponse> purchaseProduct(
+            @PathVariable Long id,
+            @RequestBody Map<String, Integer> body
+    ) {
+        int quantity = body.getOrDefault("quantity", 1);
+        return ResponseEntity.ok(
+                productService.purchaseProduct(id, quantity)
+        );
+    }
+
+    /**
      * UPLOAD PRODUCT IMAGE
      * POST /api/products/{id}/image
      */

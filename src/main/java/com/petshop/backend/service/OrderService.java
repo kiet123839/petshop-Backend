@@ -1,6 +1,7 @@
 package com.petshop.backend.service;
 
 import com.petshop.backend.dto.OrderDetailResponse;
+import com.petshop.backend.dto.ServiceItemResponse;
 import com.petshop.backend.dto.OrderItemRequest;
 import com.petshop.backend.dto.OrderRequest;
 import com.petshop.backend.dto.OrderResponse;
@@ -232,6 +233,9 @@ public class OrderService {
             }).collect(Collectors.toList()));
         }
 
+        // Parse service items từ notes: "[Dịch vụ] Tên x1 (giá), ..."
+        res.setServiceItems(parseServiceItemsFromNotes(order.getNotes()));
+
         if (paymentInfo != null) {
             if (paymentInfo.contains("|")) {
                 String[] parts = paymentInfo.split("\\|");
@@ -247,5 +251,46 @@ public class OrderService {
 
     private String formatCustomerCode(Long id) {
         return "KH" + String.format("%03d", id == null ? 0 : id);
+    }
+
+    /**
+     * Parse danh sách dịch vụ từ notes.
+     * Format được ghi bởi frontend: "[Dịch vụ] Grooming toàn diện x1 (300.000đ), Khám sức khỏe x2 (400.000đ)"
+     */
+    private java.util.List<ServiceItemResponse> parseServiceItemsFromNotes(String notes) {
+        java.util.List<ServiceItemResponse> result = new java.util.ArrayList<>();
+        if (notes == null || !notes.contains("[Dịch vụ]")) return result;
+
+        // Lấy phần sau "[Dịch vụ] "
+        int idx = notes.indexOf("[Dịch vụ]");
+        String svcPart = notes.substring(idx + "[Dịch vụ]".length()).trim();
+        // Cắt tại " | " nếu có ghi chú khác phía sau
+        if (svcPart.contains(" | ")) svcPart = svcPart.substring(0, svcPart.indexOf(" | ")).trim();
+        if (svcPart.startsWith("|")) svcPart = svcPart.substring(1).trim();
+
+        // Mỗi dịch vụ: "Tên x2 (400.000đ)"
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("(.+?)\\s+x(\\d+)\\s*\\(([\\d.,]+)đ\\)");
+        for (String part : svcPart.split(",")) {
+            part = part.trim();
+            java.util.regex.Matcher m = p.matcher(part);
+            if (m.find()) {
+                String name = m.group(1).trim();
+                int qty = Integer.parseInt(m.group(2));
+                // Parse giá: "300.000" -> 300000
+                String priceStr = m.group(3).replaceAll("[.,]", "");
+                // Giá trong notes là tổng (unitPrice * qty), nên chia lại
+                try {
+                    BigDecimal totalSvc = new BigDecimal(priceStr);
+                    BigDecimal unitPrice = totalSvc.divide(BigDecimal.valueOf(qty), 0, java.math.RoundingMode.HALF_UP);
+                    result.add(new ServiceItemResponse(name, qty, unitPrice));
+                } catch (Exception ignored) {
+                    result.add(new ServiceItemResponse(name, qty, BigDecimal.ZERO));
+                }
+            } else if (!part.isEmpty()) {
+                // Fallback: không parse được giá
+                result.add(new ServiceItemResponse(part, 1, BigDecimal.ZERO));
+            }
+        }
+        return result;
     }
 }

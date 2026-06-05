@@ -17,6 +17,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Lấy đơn hàng theo trạng thái
     List<Order> findByStatusOrderByOrderDateDesc(String status);
 
+    // Lấy tất cả đơn hàng kèm chi tiết (tránh N+1 khi load list)
+    @Query("SELECT DISTINCT o FROM Order o " +
+           "LEFT JOIN FETCH o.customer " +
+           "LEFT JOIN FETCH o.orderDetails od " +
+           "LEFT JOIN FETCH od.product " +
+           "ORDER BY o.orderDate DESC")
+    List<Order> findAllWithDetails();
+
     // Lấy đơn hàng kèm chi tiết và thông tin customer (tránh N+1)
     @Query("SELECT DISTINCT o FROM Order o " +
            "LEFT JOIN FETCH o.customer " +
