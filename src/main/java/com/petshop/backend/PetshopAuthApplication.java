@@ -15,7 +15,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *   - @ComponentScan: Quét tất cả các bean trong package này
  *
  * Cách chạy:
- *   - IntelliJ: Click chuột phải → Run 'PetshopAuthApplication'
  *   - Terminal: mvn spring-boot:run
  *   - JAR: java -jar petshop-auth-1.0.0.jar
  * ============================================================

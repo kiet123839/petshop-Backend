@@ -3,7 +3,6 @@ package com.petshop.backend.controller;
 import com.petshop.backend.dto.PetRequest;
 import com.petshop.backend.dto.PetResponse;
 import com.petshop.backend.service.PetService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,10 +10,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pets")
-@RequiredArgsConstructor
 public class PetController {
 
     private final PetService petService;
+    public PetController(PetService petService) {
+        this.petService = petService;
+    }
+
 
     @PostMapping
     public ResponseEntity<PetResponse> createPet(@RequestBody PetRequest request) {

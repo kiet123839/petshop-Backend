@@ -20,6 +20,7 @@ public class PaymentRequest {
 
     private String transactionRef;
     private String notes;
+    private String frontendReturnUrl;
 
     public Integer getOrderId() {
         return orderId;
@@ -59,5 +60,13 @@ public class PaymentRequest {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getFrontendReturnUrl() {
+        return frontendReturnUrl;
+    }
+
+    public void setFrontendReturnUrl(String frontendReturnUrl) {
+        this.frontendReturnUrl = frontendReturnUrl;
     }
 }

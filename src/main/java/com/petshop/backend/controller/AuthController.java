@@ -5,7 +5,6 @@ import com.petshop.backend.dto.LoginRequest;
 import com.petshop.backend.dto.RegisterRequest;
 import com.petshop.backend.service.AuthService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +13,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Map<String, Object>>> register(
@@ -37,6 +39,7 @@ public class AuthController {
         return ResponseEntity.ok(
                 ApiResponse.success("Đăng nhập thành công! Chào mừng trở lại 🐾", loginData)
         );
+        
     }
 
     @GetMapping("/ping")

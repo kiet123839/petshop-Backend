@@ -2,7 +2,6 @@ package com.petshop.backend.config;
 
 import com.petshop.backend.security.CustomUserDetailsService;
 import com.petshop.backend.security.JwtFilter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,40 +23,38 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService; // ← ĐÃ SỬA
+    private final CustomUserDetailsService userDetailsService;
     private final JwtFilter jwtFilter;
 
-    // ===== PASSWORD =====
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtFilter jwtFilter) {
+        this.userDetailsService = userDetailsService;
+        this.jwtFilter = jwtFilter;
+    }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ===== AUTH PROVIDER =====
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService); // ← ĐÃ SỬA (bỏ dấu ())
+        provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
 
-    // ===== AUTH MANAGER =====
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // ===== SECURITY FILTER =====
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
             .csrf(AbstractHttpConfigurer::disable)
-
             .cors(cors -> cors.configurationSource(request -> {
                 CorsConfiguration config = new CorsConfiguration();
                 config.setAllowedOriginPatterns(List.of("*"));
@@ -66,33 +63,29 @@ public class SecurityConfig {
                 config.setAllowCredentials(true);
                 return config;
             }))
-
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/products/**").permitAll()    // ← THÊM: thiếu → 403!
-                .requestMatchers("/api/categories/**").permitAll()  // ← THÊM: phòng khi cần
+                .requestMatchers("/api/products/**").permitAll()
+                .requestMatchers("/api/categories/**").permitAll()
                 .requestMatchers("/api/statistics/**").permitAll()
                 .requestMatchers("/api/payments/**").permitAll()
                 .requestMatchers("/api/customers/**").permitAll()
                 .requestMatchers("/api/pets/**").permitAll()
-                .requestMatchers("/api/services/**").permitAll()   
+                .requestMatchers("/api/services/**").permitAll()
                 .requestMatchers("/api/orders/**").permitAll()
-                .requestMatchers("/api/employees/**").permitAll()   
-                .requestMatchers("/api/schedules/**").permitAll() 
+                .requestMatchers("/api/employees/**").permitAll()
+                .requestMatchers("/api/schedules/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/bookings/**").permitAll()   // ← THÊM DÒNG NÀY
+                .requestMatchers("/api/bookings/**").permitAll()
+                .requestMatchers("/api/notifications/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
             )
-
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
-
             .authenticationProvider(authenticationProvider())
-
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-
             .headers(headers ->
                 headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
             );

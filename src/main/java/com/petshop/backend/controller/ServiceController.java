@@ -4,7 +4,6 @@ import com.petshop.backend.dto.ServiceRequest;
 import com.petshop.backend.dto.ServiceResponse;
 import com.petshop.backend.service.ServiceService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +13,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/services")
-@RequiredArgsConstructor
 public class ServiceController {
 
     private final ServiceService serviceService;
+    public ServiceController(ServiceService serviceService) {
+        this.serviceService = serviceService;
+    }
+
 
     // POST /api/services
     // Body: { "serviceName":"Grooming", "price":150000, "durationMinutes":60 }

@@ -17,6 +17,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByPet_IdOrderByBookingDateDesc(Long petId);
 
+    boolean existsByPet_Id(Long petId);
+
     List<Booking> findByStatusOrderByBookingDateAsc(String status);
 
     @Query("SELECT b FROM Booking b WHERE CAST(b.bookingDate AS date) = CAST(:date AS date) ORDER BY b.bookingDate ASC")

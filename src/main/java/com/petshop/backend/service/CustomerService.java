@@ -8,7 +8,6 @@ import com.petshop.backend.repository.BookingRepository;
 import com.petshop.backend.repository.CustomerRepository;
 import com.petshop.backend.repository.OrderRepository;
 import com.petshop.backend.repository.PetRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +15,19 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PetRepository      petRepository;
     private final BookingRepository  bookingRepository;
     private final OrderRepository    orderRepository;
+    public CustomerService(CustomerRepository customerRepository, PetRepository petRepository, BookingRepository bookingRepository, OrderRepository orderRepository) {
+        this.customerRepository = customerRepository;
+        this.petRepository = petRepository;
+        this.bookingRepository = bookingRepository;
+        this.orderRepository = orderRepository;
+    }
+
 
     public CustomerResponse createCustomer(CustomerRequest request) {
         Customer customer = new Customer();
@@ -31,8 +36,9 @@ public class CustomerService {
         customer.setEmail(request.getEmail());
         customer.setAddress(request.getAddress());
         customer.setBirthDate(request.getBirthDate());
-        customer.setCustomerCode("CUS" + System.currentTimeMillis());
         Customer saved = customerRepository.save(customer);
+        saved.setCustomerCode(formatCustomerCode(saved.getId()));
+        saved = customerRepository.save(saved);
         return toResponse(saved);
     }
 
@@ -91,7 +97,7 @@ public class CustomerService {
     private CustomerResponse toResponse(Customer c) {
         CustomerResponse res = new CustomerResponse();
         res.setId(c.getId());
-        res.setCustomerCode(c.getCustomerCode());
+        res.setCustomerCode(resolveCustomerCode(c));
         res.setFullName(c.getFullName());
         res.setPhone(c.getPhone());
         res.setEmail(c.getEmail());
@@ -101,5 +107,17 @@ public class CustomerService {
         res.setTier(c.getTier());
         res.setIsActive(c.getIsActive());
         return res;
+    }
+
+    private String resolveCustomerCode(Customer customer) {
+        String code = customer.getCustomerCode();
+        if (code != null && code.matches("KH\\d{3,}")) {
+            return code;
+        }
+        return formatCustomerCode(customer.getId());
+    }
+
+    private String formatCustomerCode(Long id) {
+        return "KH" + String.format("%03d", id == null ? 0 : id);
     }
 }

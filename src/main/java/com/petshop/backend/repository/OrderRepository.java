@@ -19,6 +19,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Lấy đơn hàng kèm chi tiết và thông tin customer (tránh N+1)
     @Query("SELECT DISTINCT o FROM Order o " +
+           "LEFT JOIN FETCH o.customer " +
            "LEFT JOIN FETCH o.orderDetails od " +
            "LEFT JOIN FETCH od.product " +
            "WHERE o.id = :orderId")

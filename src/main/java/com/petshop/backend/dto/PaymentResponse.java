@@ -4,6 +4,7 @@ public class PaymentResponse {
     private Integer paymentId;
     private String status;
     private String message;
+    private String paymentUrl;
 
     public PaymentResponse() {}
 
@@ -35,5 +36,13 @@ public class PaymentResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getPaymentUrl() {
+        return paymentUrl;
+    }
+
+    public void setPaymentUrl(String paymentUrl) {
+        this.paymentUrl = paymentUrl;
     }
 }

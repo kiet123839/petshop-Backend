@@ -3,17 +3,19 @@ package com.petshop.backend.controller;
 import com.petshop.backend.dto.EmployeeDTO;
 import com.petshop.backend.service.EmployeeService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/employees")
-@RequiredArgsConstructor
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    public EmployeeController(EmployeeService employeeService) {
+        this.employeeService = employeeService;
+    }
+
 
     @GetMapping
     public ResponseEntity<List<EmployeeDTO>> getAll(

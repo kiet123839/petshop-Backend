@@ -17,14 +17,16 @@ import com.petshop.backend.dto.CustomerRequest;
 import com.petshop.backend.dto.CustomerResponse;
 import com.petshop.backend.service.CustomerService;
 
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/customers")
-@RequiredArgsConstructor
 public class CustomerController {
 
     private final CustomerService customerService;
+    public CustomerController(CustomerService customerService) {
+        this.customerService = customerService;
+    }
+
 
     @PostMapping
     public ResponseEntity<CustomerResponse> createCustomer(@RequestBody CustomerRequest request) {

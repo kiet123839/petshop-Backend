@@ -33,4 +33,16 @@ public class StatisticsController {
     public List<Map<String, Object>> getTopSellingProducts() {
         return statisticsService.getTopSellingProducts();
     }
+
+    // ✅ THÊM: endpoint dashboard summary cho các card thống kê
+    @GetMapping("/dashboard")
+    public Map<String, Object> getDashboardSummary() {
+        return statisticsService.getDashboardSummary();
+    }
+
+    // ✅ THÊM: endpoint 10 đơn hàng gần nhất
+    @GetMapping("/recent-orders")
+    public List<Map<String, Object>> getRecentOrders() {
+        return statisticsService.getRecentOrders();
+    }
 }

@@ -12,36 +12,50 @@ import com.petshop.backend.repository.CustomerRepository;
 import com.petshop.backend.repository.OrderRepository;
 import com.petshop.backend.repository.PaymentRepository;
 import com.petshop.backend.repository.ProductRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @org.springframework.stereotype.Service
-@RequiredArgsConstructor
 public class OrderService {
+    private static final Pattern BOOKING_NOTE_PATTERN = Pattern.compile("\\[booking\\s*#(\\d+)\\]", Pattern.CASE_INSENSITIVE);
 
-    private final OrderRepository      orderRepository;
-    private final CustomerRepository   customerRepository;
-    private final ProductRepository    productRepository;
-    private final PaymentRepository    paymentRepository;
+    private final OrderRepository orderRepository;
+    private final CustomerRepository customerRepository;
+    private final ProductRepository productRepository;
+    private final PaymentRepository paymentRepository;
+    private final EmailNotificationService emailNotificationService;
+    public OrderService(OrderRepository orderRepository, CustomerRepository customerRepository, ProductRepository productRepository, PaymentRepository paymentRepository, EmailNotificationService emailNotificationService) {
+        this.orderRepository = orderRepository;
+        this.customerRepository = customerRepository;
+        this.productRepository = productRepository;
+        this.paymentRepository = paymentRepository;
+        this.emailNotificationService = emailNotificationService;
+    }
+
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
+        Optional<Order> existingBookingOrder = findExistingBookingOrder(request.getNotes());
+        if (existingBookingOrder.isPresent()) {
+            Order existing = existingBookingOrder.get();
+            return toResponse(existing, getPaymentStatus(existing.getId()));
+        }
 
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new RuntimeException(
                         "Không tìm thấy khách hàng id: " + request.getCustomerId()));
 
-        // ✅ Guard: items có thể null hoặc rỗng (khi chỉ đặt dịch vụ)
         List<OrderItemRequest> items = (request.getItems() != null)
                 ? request.getItems()
                 : List.of();
 
-        // Tính tổng tiền sản phẩm
         BigDecimal productTotal = BigDecimal.ZERO;
         for (OrderItemRequest item : items) {
             Product product = productRepository.findById(item.getProductId())
@@ -59,14 +73,15 @@ public class OrderService {
                     product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
 
-        // ✅ Cộng thêm tiền dịch vụ (frontend tính và gửi lên qua serviceAmount)
-        BigDecimal serviceAmt  = (request.getServiceAmount() != null)
+        BigDecimal serviceAmt = (request.getServiceAmount() != null)
                 ? request.getServiceAmount() : BigDecimal.ZERO;
         BigDecimal totalAmount = productTotal.add(serviceAmt);
 
-        BigDecimal discount    = request.getDiscountAmount() != null ? request.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal discount = request.getDiscountAmount() != null ? request.getDiscountAmount() : BigDecimal.ZERO;
         BigDecimal finalAmount = totalAmount.subtract(discount);
-        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) finalAmount = BigDecimal.ZERO;
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
+        }
 
         Order order = new Order();
         order.setCustomer(customer);
@@ -79,7 +94,6 @@ public class OrderService {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
-        // Lưu chi tiết sản phẩm + trừ tồn kho
         for (OrderItemRequest item : items) {
             Product product = productRepository.findById(item.getProductId()).get();
 
@@ -98,6 +112,25 @@ public class OrderService {
 
         Order saved = orderRepository.save(order);
         return toResponse(saved, null);
+    }
+
+    private Optional<Order> findExistingBookingOrder(String notes) {
+        Long bookingId = extractBookingId(notes);
+        if (bookingId == null) {
+            return Optional.empty();
+        }
+
+        return orderRepository.findAll().stream()
+                .filter(order -> bookingId.equals(extractBookingId(order.getNotes())))
+                .findFirst();
+    }
+
+    private Long extractBookingId(String notes) {
+        if (notes == null) {
+            return null;
+        }
+        Matcher matcher = BOOKING_NOTE_PATTERN.matcher(notes);
+        return matcher.find() ? Long.valueOf(matcher.group(1)) : null;
     }
 
     public List<OrderResponse> getAllOrders() {
@@ -142,9 +175,18 @@ public class OrderService {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng id: " + id));
 
+        String oldStatus = order.getStatus();
         order.setStatus(newStatus);
         order.setUpdatedAt(LocalDateTime.now());
-        return toResponse(orderRepository.save(order), getPaymentStatus(id));
+
+        Order savedOrder = orderRepository.save(order);
+        String paymentInfo = getPaymentStatus(id);
+
+        if (!"Delivered".equals(oldStatus) && "Delivered".equals(newStatus)) {
+            emailNotificationService.sendOrderDeliveredNotification(savedOrder, paymentInfo);
+        }
+
+        return toResponse(savedOrder, paymentInfo);
     }
 
     private String getPaymentStatus(Long orderId) {
@@ -170,7 +212,7 @@ public class OrderService {
         if (order.getCustomer() != null) {
             Customer c = order.getCustomer();
             res.setCustomerId(c.getId());
-            res.setCustomerCode(c.getCustomerCode());
+            res.setCustomerCode(formatCustomerCode(c.getId()));
             res.setCustomerName(c.getFullName());
             res.setCustomerPhone(c.getPhone());
         }
@@ -201,5 +243,9 @@ public class OrderService {
         }
 
         return res;
+    }
+
+    private String formatCustomerCode(Long id) {
+        return "KH" + String.format("%03d", id == null ? 0 : id);
     }
 }

@@ -1,1 +1,31 @@
-/target/
+# Maven
+target/
+*.jar
+*.war
+*.ear
+.mvn/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.class
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets - KHÔNG bao giờ commit file này!
+.env
+.env.local
+application-prod.yml
+application-secret.yml
+
+# Local Maven cache (không cần push lên git)
+.m2/

@@ -7,7 +7,6 @@ import com.petshop.backend.dto.OrderResponse;
 import com.petshop.backend.dto.BookingResponse;
 import com.petshop.backend.repository.OrderRepository;
 import com.petshop.backend.repository.BookingRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,11 +33,15 @@ import java.util.stream.Collectors;
  *  7. Xóa file báo cáo cũ
  */
 @Service
-@RequiredArgsConstructor
 public class ReportIoService {
 
     private final OrderService   orderService;
     private final BookingService bookingService;
+    public ReportIoService(OrderService orderService, BookingService bookingService) {
+        this.orderService = orderService;
+        this.bookingService = bookingService;
+    }
+
 
     // Thư mục lưu báo cáo — tạo tự động nếu chưa có
     private static final String REPORT_DIR = "reports/";

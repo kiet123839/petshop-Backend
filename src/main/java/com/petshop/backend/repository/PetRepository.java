@@ -9,4 +9,5 @@ import java.util.List;
 public interface PetRepository extends JpaRepository<Pet, Long> {
     // Đúng cú pháp: truy cập qua object customer rồi lấy id
     List<Pet> findByCustomer_Id(Long customerId);
+    List<Pet> findByCustomer_IdAndIsActiveTrue(Long customerId);
 }

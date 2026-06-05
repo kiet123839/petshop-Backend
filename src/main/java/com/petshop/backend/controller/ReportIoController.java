@@ -1,7 +1,6 @@
 package com.petshop.backend.controller;
 
 import com.petshop.backend.service.ReportIoService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -28,10 +27,13 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/reports")
-@RequiredArgsConstructor
 public class ReportIoController {
 
     private final ReportIoService reportIoService;
+    public ReportIoController(ReportIoService reportIoService) {
+        this.reportIoService = reportIoService;
+    }
+
 
     // ─── 1. XUẤT ĐƠN HÀNG → JSON (download) ──────────────
     @GetMapping("/export/orders/json")

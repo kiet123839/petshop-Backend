@@ -1,15 +1,12 @@
 package com.petshop.backend.service;
 
 import com.petshop.backend.dto.ScheduleDTO;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
-/**
- * ✅ Interface ScheduleService được tạo mới.
- * Bản gốc petshop không có interface này (chỉ có ScheduleServiceImpl),
- * tạo thêm để đồng nhất với pattern EmployeeService / EmployeeServiceImpl.
- * ScheduleController inject qua interface này thay vì Impl trực tiếp.
- */
 public interface ScheduleService {
     List<ScheduleDTO> getAll();
     ScheduleDTO create(ScheduleDTO dto);
@@ -18,4 +15,9 @@ public interface ScheduleService {
     List<ScheduleDTO> getByDate(LocalDate date);
     void delete(Long id);
     List<ScheduleDTO> getByEmployeeAndRange(Long employeeId, LocalDate from, LocalDate to);
+
+    // Import Excel
+    byte[] generateImportTemplate();
+    Map<String, Object> previewImportExcel(MultipartFile file);
+    Map<String, Object> importFromExcel(MultipartFile file);
 }

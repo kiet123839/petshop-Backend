@@ -9,13 +9,15 @@ import com.petshop.backend.dto.ServiceResponse;
 import com.petshop.backend.model.Service;  // ✅ dùng full class name trực tiếp
 import com.petshop.backend.repository.ServiceRepository;
 
-import lombok.RequiredArgsConstructor;
 
 @org.springframework.stereotype.Service
-@RequiredArgsConstructor
 public class ServiceService {
 
     private final ServiceRepository serviceRepository;
+    public ServiceService(ServiceRepository serviceRepository) {
+        this.serviceRepository = serviceRepository;
+    }
+
 
     public ServiceResponse createService(ServiceRequest request) {
         Service svc = new Service();

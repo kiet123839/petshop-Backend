@@ -2,10 +2,11 @@ package com.petshop.backend.service;
 
 import com.petshop.backend.dto.LoginRequest;
 import com.petshop.backend.dto.RegisterRequest;
+import com.petshop.backend.model.Customer;
 import com.petshop.backend.model.User;
+import com.petshop.backend.repository.CustomerRepository;
 import com.petshop.backend.repository.UserRepository;
 import com.petshop.backend.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,27 +30,24 @@ import java.util.Map;
  * ============================================================
  */
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
+    private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    public AuthService(CustomerRepository customerRepository, UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+        this.customerRepository = customerRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtil = jwtUtil;
+    }
+
 
     /**
      * Xử lý đăng ký tài khoản mới
-     *
-     * Luồng xử lý:
-     *   1. Kiểm tra username đã tồn tại chưa
-     *   2. Kiểm tra email đã tồn tại chưa
-     *   3. Mã hóa mật khẩu bằng BCrypt
-     *   4. Tạo User object và lưu vào database
-     *   5. Trả về thông tin đăng ký thành công
-     *
-     * @param request - Dữ liệu đăng ký từ client
-     * @return Map chứa thông tin user vừa đăng ký
-     * @throws RuntimeException nếu username hoặc email đã tồn tại
      */
     public Map<String, Object> register(RegisterRequest request) {
 
@@ -70,7 +68,7 @@ public class AuthService {
         User newUser = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
-                .password(encodedPassword)  // Lưu mật khẩu đã mã hóa
+                .password(encodedPassword)
                 .fullName(request.getFullName())
                 .role("Customer")
                 .build();
@@ -86,30 +84,20 @@ public class AuthService {
         result.put("role", savedUser.getRole());
         result.put("createdAt", savedUser.getCreatedAt());
 
+        // ✅ THÊM CHỖ 3: trả về customerId nếu đã có bản ghi Customer
+        Customer customer = ensureCustomerProfile(savedUser);
+        result.put("customerId", customer.getId());
+        result.put("customerCode", customer.getCustomerCode());
+
         return result;
     }
 
     /**
      * Xử lý đăng nhập và cấp JWT token
-     *
-     * Luồng xử lý:
-     *   1. Dùng AuthenticationManager xác thực username/password
-     *      → Nếu sai: Tự động ném BadCredentialsException
-     *   2. Tìm user từ database
-     *   3. Tạo JWT token
-     *   4. Trả về token + thông tin user
-     *
-     * @param request - Thông tin đăng nhập từ client
-     * @return Map chứa JWT token và thông tin user
-     * @throws org.springframework.security.authentication.BadCredentialsException nếu sai thông tin
      */
     public Map<String, Object> login(LoginRequest request) {
 
         // Bước 1: Xác thực username và password
-        // AuthenticationManager sẽ:
-        //   - Load user từ database qua UserDetailsService
-        //   - So sánh password với BCrypt
-        //   - Ném exception nếu sai
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),
@@ -117,11 +105,11 @@ public class AuthService {
                 )
         );
 
-        // Bước 2: Nếu đến đây là xác thực thành công - Tìm user từ DB
+        // Bước 2: Tìm user từ DB
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng!"));
 
-        // Bước 3: Tạo JWT token chứa username
+        // Bước 3: Tạo JWT token
         String token = jwtUtil.generateToken(user.getUsername());
 
         // Bước 4: Trả về token + thông tin user cơ bản
@@ -133,22 +121,58 @@ public class AuthService {
         result.put("fullName", user.getFullName());
         result.put("role", user.getRole());
 
+        // ✅ THÊM CHỖ 2: trả về customerId và customerCode
+        if ("Customer".equals(user.getRole())) {
+            Customer customer = ensureCustomerProfile(user);
+            result.put("customerId", customer.getId());
+            result.put("customerCode", customer.getCustomerCode());
+        }
+
         return result;
     }
-    
- // ✅ THÊM: validate email cho forgot-password
+
+    // ✅ validate email cho forgot-password
+    private Customer ensureCustomerProfile(User user) {
+        return customerRepository.findByUserId(user.getId().longValue())
+                .map(this::ensureCustomerCode)
+                .orElseGet(() -> {
+                    Customer customer = new Customer();
+                    customer.setUserId(user.getId().longValue());
+                    customer.setFullName(user.getFullName());
+                    customer.setEmail(user.getEmail());
+                    customer.setIsActive(true);
+                    customer.setLoyaltyPoints(0);
+                    customer.setTier("BRONZE");
+                    Customer saved = customerRepository.save(customer);
+                    saved.setCustomerCode(formatCustomerCode(saved.getId()));
+                    return customerRepository.save(saved);
+                });
+    }
+
+    private Customer ensureCustomerCode(Customer customer) {
+        String code = customer.getCustomerCode();
+        if (code != null && code.matches("KH\\d{3,}")) {
+            return customer;
+        }
+        customer.setCustomerCode(formatCustomerCode(customer.getId()));
+        return customerRepository.save(customer);
+    }
+
+    private String formatCustomerCode(Long id) {
+        return "KH" + String.format("%03d", id == null ? 0 : id);
+    }
+
     public void validateEmailExists(String email) {
         if (!userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email không tồn tại trong hệ thống!");
         }
     }
 
-    // ✅ THÊM: reset password
+    // ✅ reset password
     public void resetPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Email không tồn tại!"));
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
-}  
-
+}

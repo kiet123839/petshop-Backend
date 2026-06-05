@@ -4,7 +4,6 @@ import com.petshop.backend.dto.BookingRequest;
 import com.petshop.backend.dto.BookingResponse;
 import com.petshop.backend.service.BookingService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +15,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
-@RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
+    }
+
 
     // ─────────────────────────────────────────────────────────
     // POST /api/bookings

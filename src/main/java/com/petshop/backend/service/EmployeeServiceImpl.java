@@ -3,17 +3,19 @@ package com.petshop.backend.service;
 import com.petshop.backend.dto.EmployeeDTO;
 import com.petshop.backend.model.Employee;
 import com.petshop.backend.repository.EmployeeRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+        this.employeeRepository = employeeRepository;
+    }
+
 
     @Override
     public List<EmployeeDTO> getAll() {
