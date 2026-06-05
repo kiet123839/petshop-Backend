@@ -100,3 +100,5 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getStatusSummary());
     }
 }
+/* test
+ */ 
