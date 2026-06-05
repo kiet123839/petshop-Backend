@@ -3,7 +3,6 @@ package com.petshop.backend.service;
 import com.petshop.backend.dto.CustomerRequest;
 import com.petshop.backend.dto.CustomerResponse;
 import com.petshop.backend.model.Customer;
-import com.petshop.backend.model.Pet;
 import com.petshop.backend.repository.BookingRepository;
 import com.petshop.backend.repository.CustomerRepository;
 import com.petshop.backend.repository.OrderRepository;
@@ -21,13 +20,13 @@ public class CustomerService {
     private final PetRepository      petRepository;
     private final BookingRepository  bookingRepository;
     private final OrderRepository    orderRepository;
+
     public CustomerService(CustomerRepository customerRepository, PetRepository petRepository, BookingRepository bookingRepository, OrderRepository orderRepository) {
         this.customerRepository = customerRepository;
         this.petRepository = petRepository;
         this.bookingRepository = bookingRepository;
         this.orderRepository = orderRepository;
     }
-
 
     public CustomerResponse createCustomer(CustomerRequest request) {
         Customer customer = new Customer();
@@ -43,7 +42,8 @@ public class CustomerService {
     }
 
     public List<CustomerResponse> getAllCustomers() {
-        return customerRepository.findAll()
+        // Đã cập nhật: Sử dụng findByIsActiveTrue() để chỉ lấy khách hàng chưa bị xóa
+        return customerRepository.findByIsActiveTrue()
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -69,29 +69,10 @@ public class CustomerService {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy customer id: " + id));
 
-        // 1. Xóa bookings của từng pet
-        List<Pet> pets = petRepository.findByCustomer_Id(id);
-        for (Pet pet : pets) {
-            bookingRepository.deleteAll(
-                bookingRepository.findByPet_IdOrderByBookingDateDesc(pet.getId())
-            );
-        }
-
-        // 2. Xóa bookings của customer (phòng trường hợp booking không có pet)
-        bookingRepository.deleteAll(
-            bookingRepository.findByCustomer_IdOrderByBookingDateDesc(id)
-        );
-
-        // 3. Xóa orders của customer
-        orderRepository.deleteAll(
-            orderRepository.findByCustomerIdOrderByOrderDateDesc(id)
-        );
-
-        // 4. Xóa pets
-        petRepository.deleteAll(pets);
-
-        // 5. Xóa customer
-        customerRepository.delete(customer);
+        // Đã cập nhật: Xóa mềm khách hàng (chỉ đổi trạng thái)
+        // Lược bỏ toàn bộ các lệnh deleteAll rủi ro để bảo toàn lịch sử đơn hàng và thú cưng
+        customer.setIsActive(false);
+        customerRepository.save(customer);
     }
 
     private CustomerResponse toResponse(Customer c) {
